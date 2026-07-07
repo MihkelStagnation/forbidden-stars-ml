@@ -405,6 +405,17 @@ heuristic bots replace calibration as the yardstick from here.)
       57.8%; the board heuristic beats random **98-99.8%** from every seat —
       on a board, purposeful movement dominates, so "beats random" is nearly
       meaningless and THE HEURISTIC IS THE YARDSTICK for this rung.
+    - **Results (400-iter league run, `checkpoints/board.pt`):** beats the
+      heuristic **94.0-96.3%** from every seat (300 games/cell) and random
+      100%. First-run success — the autoregressive movement + terminal-only
+      reward across 100-300 decisions learned without any extra machinery
+      (no BPTT needed at this map size). Game traces show a coherent learned
+      **blitz**: build wide with cheap units in round 1, mass on the center,
+      win the fight, storm the enemy home in round 2 for the instant win.
+      Exploitability probe running (board_adversary.pt) — the open question
+      is whether the blitz is robust or merely unanswered (can a turtle
+      counter it?). If the adversary finds a counter, that's rung C's
+      DeepNash-relevant signal (and a map/design lever: harder home capture).
     Rulebook fidelity decisions deferred to rung D+.
 17. **Rung D — order stacks** (large; the strategic heart of FS): alternating
     face-down order tokens (Advance/Deploy/Strategize/Dominate) resolved
