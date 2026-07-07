@@ -86,12 +86,12 @@ UNIT_SELECT_BASE = MAX_HAND                              # unit slots 5..16
 UNIT_FEATS = 9 + 1 + N_PLANETS
 
 # board scalar block appended to the combat scalars:
-# [in_build, in_select, in_dest, in_battle, round/8,
+# [in_build, in_select, in_dest, in_battle, round/8, has_initiative,
 #  points self, points enemy, owned bits self x9, enemy x9,
 #  per-planet: controlled-by-self x5, by-enemy x5,
 #  per-planet unit counts self x5, enemy x5,
 #  selected-unit planet one-hot x5, roster self, roster enemy]
-BOARD_SCALARS = 4 + 1 + 2 + 2 * len(UPGRADE_IDS) + 4 * N_PLANETS + N_PLANETS + 2
+BOARD_SCALARS = 4 + 2 + 2 + 2 * len(UPGRADE_IDS) + 4 * N_PLANETS + N_PLANETS + 2
 SCALAR_FEATS = COMBAT_SCALAR_FEATS + BOARD_SCALARS
 
 PHASE_BUILD = 2
@@ -143,6 +143,12 @@ class BoardEnv:
         occ = [p for p in (0, 1)
                if any(u["planet"] == planet for u in self.units[p])]
         return occ[0] if len(occ) == 1 else None
+
+    def _initiative(self):
+        """Who acts first this round — rotates to kill the first-mover edge
+        (the rung C exploitability probe showed a permanent first mover gets
+        an 87% counter-blitz; real FS rotates initiative too)."""
+        return (self.round - 1) % 2
 
     def _stage(self):
         return STAGE_BY_ROUND[min(self.round, N_ROUNDS) - 1]
@@ -209,7 +215,7 @@ class BoardEnv:
         if self._passed[0] and self._passed[1]:
             self.phase = PHASE_SELECT
             self._passed = {0: False, 1: False}
-            self.current_player = 0
+            self.current_player = self._initiative()
             return
         other = 1 - p
         self.current_player = other if not self._passed[other] else p
@@ -333,7 +339,7 @@ class BoardEnv:
             return
         self.round += 1
         self.phase = PHASE_BUILD
-        self.current_player = 0
+        self.current_player = self._initiative()
         self._passed = {0: False, 1: False}
         self._last_entrant = {}
         for p in (0, 1):
@@ -405,6 +411,7 @@ class BoardEnv:
             1.0 if self.phase == PHASE_DEST else 0.0,
             1.0 if self._battle is not None else 0.0,
             self.round / N_ROUNDS,
+            1.0 if self._initiative() == p else 0.0,
             self.points[p] / 15.0, self.points[opp] / 15.0,
         ]
         block += [float(cid in self.owned[p]) for cid in UPGRADE_IDS]

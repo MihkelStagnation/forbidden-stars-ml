@@ -77,6 +77,19 @@ def test_units_start_at_home_and_moves_are_adjacent():
     assert env.units[0][0]["moved"]
 
 
+def test_initiative_rotates():
+    env = BoardEnv(seed=4)
+    env.reset()
+    assert env.current_player == 0        # round 1: P0 acts first
+    env.units[1] = [dict(u) for u in env.units[1]]  # no battles: stay home
+    from fsneural.game_env import PASS_ACTION
+    env.step(PASS_ACTION); env.step(PASS_ACTION)    # both pass build
+    assert env.current_player == 0        # round 1 movement: P0 first
+    env.step(MOVE_PASS); env.step(MOVE_PASS)        # both pass movement
+    assert env.round == 2
+    assert env.current_player == 1        # round 2: P1 acts first
+
+
 def test_home_capture_wins():
     env = BoardEnv(seed=3)
     env.reset()
