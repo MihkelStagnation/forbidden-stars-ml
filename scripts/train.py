@@ -78,6 +78,9 @@ def main():
         if args.league_dir == "checkpoints/league":
             args.league_dir = f"checkpoints/league_{args.env}"
 
+    import sys
+    sys.stdout.reconfigure(line_buffering=True)  # keep redirected logs live
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Training on {device}")
 
