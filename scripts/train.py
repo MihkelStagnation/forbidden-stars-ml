@@ -71,6 +71,9 @@ def main():
     ap.add_argument("--gae-lambda", type=float, default=0.95)
     ap.add_argument("--env", default="combat",
                     choices=("combat", "campaign", "board"))
+    ap.add_argument("--resume", action="store_true",
+                    help="continue from the --out checkpoint if it exists "
+                         "(model weights only; the optimizer restarts fresh)")
     args = ap.parse_args()
     if args.env != "combat":  # separate artefacts unless overridden
         if args.out == "checkpoints/model.pt":
@@ -89,6 +92,9 @@ def main():
     rng = np.random.default_rng(args.seed)
 
     env, model, heuristic_fn = make_env_and_model(args.env, args.seed, device)
+    if args.resume and os.path.exists(args.out):
+        model.load_state_dict(torch.load(args.out, map_location=device))
+        print(f"Resumed weights from {args.out}")
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
