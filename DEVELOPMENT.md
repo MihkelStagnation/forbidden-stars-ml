@@ -378,11 +378,34 @@ heuristic bots replace calibration as the yardstick from here.)
       matchup played once per side, like the reference). Training itself is
       unaffected (faction-role randomization means the net masters both
       seats).
-16. **Rung C — small board** (large): 4-6 systems as a graph; move, deploy,
-    fight on collision. Actions become compound → **autoregressive pointer
-    heads** (emit unit group, then destination, masked at each step — the
-    pointer-head building block from Phase 2b chains into this). Last
-    comfortably-CPU rung. Rulebook needed from here for fidelity decisions.
+16. **Rung C — small board** (built 2026-07-07, `fsneural/board_env.py`;
+    first training in progress). 5-planet symmetric map (homes worth 2,
+    flanks 1, center 2; all-pairs adjacency minus the flank-to-flank edge),
+    N_ROUNDS=8 of build → move → resolve:
+    - Income = 3 + controlled planet values (control = sole occupancy);
+      builds deploy at home (blocked while the enemy holds it); purchase
+      rules as in the campaign, tier access paced early/mid/late by round.
+    - **Autoregressive movement**: alternating single-unit moves taken as two
+      sequenced masked decisions — SELECT a unit (reusing the unit-pointer
+      action slots 5-16) then pick an adjacent DESTINATION (5 flat planet
+      actions + move-pass). The GRU carries context between the two steps; a
+      'selected' flag + planet one-hot extend unit features (UNIT_FEATS 15).
+      No new head machinery needed — the pointer architecture composes.
+    - Battles resolve per contested planet via the combat env (attacker =
+      last mover-in; decks from owned upgrades); losers' survivors retreat
+      toward home (destroyed if surrounded); killed units are permanent.
+    - Win: solely occupy the enemy home at round end (immediate), else most
+      controlled value after 8 rounds; equal = draw. Terminal-only reward
+      across 100-300 decisions.
+    - Board dims: ACTION_DIM 37, SCALAR_FEATS 92, UNIT_FEATS 15 (model fully
+      parameterized). `--env board` in train/evaluate; board heuristic
+      (march-on-enemy-home, defend-when-invaded) in heuristic.py; tests in
+      tests/test_board_env.py.
+    - **Baselines (500 games)**: random-vs-random P0=SM 37.6% / P0=Orks
+      57.8%; the board heuristic beats random **98-99.8%** from every seat —
+      on a board, purposeful movement dominates, so "beats random" is nearly
+      meaningless and THE HEURISTIC IS THE YARDSTICK for this rung.
+    Rulebook fidelity decisions deferred to rung D+.
 17. **Rung D — order stacks** (large; the strategic heart of FS): alternating
     face-down order tokens (Advance/Deploy/Strategize/Dominate) resolved
     LIFO. Stratego-like bluffing → implement **BPTT** here (beliefs about

@@ -18,9 +18,12 @@ import torch
 
 from fsneural.combat_env import CombatEnv
 from fsneural import game_env as ge
+from fsneural import board_env as be
 from fsneural.model import CombatNet
 from fsneural.agent import PolicyAgent
-from fsneural.heuristic import heuristic_action, campaign_heuristic_action
+from fsneural.heuristic import (
+    heuristic_action, campaign_heuristic_action, board_heuristic_action,
+)
 
 
 def random_action(obs, rng):
@@ -31,6 +34,7 @@ def random_action(obs, rng):
 def play_game(env, agent, rng, agent_player=0, deterministic=True,
               opponent="random"):
     heuristic_fn = (campaign_heuristic_action if isinstance(env, ge.GameEnv)
+                    else board_heuristic_action if isinstance(env, be.BoardEnv)
                     else heuristic_action)
     obs, info = env.reset()
     agent.reset_memory()
@@ -56,10 +60,11 @@ def main():
     ap.add_argument("--opponent", default="random", choices=("random", "heuristic"))
     ap.add_argument("--factions", nargs=2, default=["SM", "Orks"],
                     metavar=("ATTACKER", "DEFENDER"))
-    ap.add_argument("--env", default="combat", choices=("combat", "campaign"))
+    ap.add_argument("--env", default="combat",
+                    choices=("combat", "campaign", "board"))
     args = ap.parse_args()
-    if args.env == "campaign" and args.model == "checkpoints/model.pt":
-        args.model = "checkpoints/campaign.pt"
+    if args.env != "combat" and args.model == "checkpoints/model.pt":
+        args.model = f"checkpoints/{args.env}.pt"
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     rng = np.random.default_rng(args.seed)
@@ -67,6 +72,12 @@ def main():
         env = ge.GameEnv(factions=tuple(args.factions), seed=args.seed)
         model = CombatNet(scalar_feats=ge.SCALAR_FEATS,
                           n_build_actions=ge.N_BUILD_ACTIONS).to(device)
+    elif args.env == "board":
+        env = be.BoardEnv(factions=tuple(args.factions), seed=args.seed)
+        model = CombatNet(scalar_feats=be.SCALAR_FEATS,
+                          unit_feats=be.UNIT_FEATS,
+                          n_build_actions=ge.N_BUILD_ACTIONS + be.N_PLANETS + 1
+                          ).to(device)
     else:
         env = CombatEnv(factions=tuple(args.factions), seed=args.seed)
         model = CombatNet().to(device)

@@ -23,9 +23,12 @@ import torch
 
 from fsneural.combat_env import CombatEnv
 from fsneural import game_env as ge
+from fsneural import board_env as be
 from fsneural.model import CombatNet
 from fsneural.agent import PolicyAgent
-from fsneural.heuristic import heuristic_action, campaign_heuristic_action
+from fsneural.heuristic import (
+    heuristic_action, campaign_heuristic_action, board_heuristic_action,
+)
 from fsneural.selfplay import collect_episode, build_batch, ppo_update
 
 MIX_MIRROR, MIX_SNAPSHOT, MIX_HEURISTIC = 0.5, 0.35, 0.15
@@ -37,6 +40,14 @@ def make_env_and_model(kind, seed, device):
         model = CombatNet(scalar_feats=ge.SCALAR_FEATS,
                           n_build_actions=ge.N_BUILD_ACTIONS).to(device)
         return env, model, campaign_heuristic_action
+    if kind == "board":
+        env = be.BoardEnv(seed=seed)
+        # flat actions 17..36: 14 build + 5 destinations + move-pass
+        model = CombatNet(scalar_feats=be.SCALAR_FEATS,
+                          unit_feats=be.UNIT_FEATS,
+                          n_build_actions=ge.N_BUILD_ACTIONS + be.N_PLANETS + 1
+                          ).to(device)
+        return env, model, board_heuristic_action
     env = CombatEnv(seed=seed)
     return env, CombatNet().to(device), heuristic_action
 
@@ -58,13 +69,14 @@ def main():
                          "EVERY episode against this frozen checkpoint")
     ap.add_argument("--gamma", type=float, default=0.99)
     ap.add_argument("--gae-lambda", type=float, default=0.95)
-    ap.add_argument("--env", default="combat", choices=("combat", "campaign"))
+    ap.add_argument("--env", default="combat",
+                    choices=("combat", "campaign", "board"))
     args = ap.parse_args()
-    if args.env == "campaign":  # separate artefacts unless overridden
+    if args.env != "combat":  # separate artefacts unless overridden
         if args.out == "checkpoints/model.pt":
-            args.out = "checkpoints/campaign.pt"
+            args.out = f"checkpoints/{args.env}.pt"
         if args.league_dir == "checkpoints/league":
-            args.league_dir = "checkpoints/league_campaign"
+            args.league_dir = f"checkpoints/league_{args.env}"
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Training on {device}")

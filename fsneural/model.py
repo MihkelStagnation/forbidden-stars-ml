@@ -40,7 +40,8 @@ class CombatNet(nn.Module):
     slot identity shuffles (hand cards, unit targets)."""
 
     def __init__(self, d_model=64, n_heads=4, mem_size=64,
-                 scalar_feats=SCALAR_FEATS, n_build_actions=0):
+                 scalar_feats=SCALAR_FEATS, n_build_actions=0,
+                 unit_feats=UNIT_FEATS):
         super().__init__()
         self.d_model = d_model
         self.mem_size = mem_size
@@ -48,7 +49,7 @@ class CombatNet(nn.Module):
 
         # Per-entity embeddings. Units carry a self/enemy flag already, so a
         # single unit embedder handles both sides.
-        self.unit_embed = nn.Linear(UNIT_FEATS, d_model)
+        self.unit_embed = nn.Linear(unit_feats, d_model)
         self.card_embed = nn.Linear(CARD_FEATS, d_model)
         self.scalar_embed = nn.Sequential(
             nn.Linear(scalar_feats, d_model), nn.ReLU(),
