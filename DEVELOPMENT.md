@@ -412,10 +412,21 @@ heuristic bots replace calibration as the yardstick from here.)
       (no BPTT needed at this map size). Game traces show a coherent learned
       **blitz**: build wide with cheap units in round 1, mass on the center,
       win the fight, storm the enemy home in round 2 for the instant win.
-      Exploitability probe running (board_adversary.pt) — the open question
-      is whether the blitz is robust or merely unanswered (can a turtle
-      counter it?). If the adversary finds a counter, that's rung C's
-      DeepNash-relevant signal (and a map/design lever: harder home capture).
+      **v1 probe verdict: design flaw found.** The adversary managed only
+      44.9% overall but **87.3% as first-moving Orks** — the permanent
+      P0-acts-first structure let a first-mover counter-blitz win the mirror
+      race. Fixed by **rotating initiative per round** (as real FS does;
+      exposed in scalars, SCALAR_FEATS 92→93). v1 champion archived as
+      `board_v1_p0first.pt`.
+    - **v2 champion** (retrained under rotation, `checkpoints/board.pt`):
+      beats the heuristic 95.7 / 92.7 / 98.0 / 86.3% across the four seats.
+      **NEXT STEP (paused 2026-07-08):** the v2 exploitability re-probe was
+      stopped at ~iter 25/400; resume with
+      `python -m scripts.train --env board --exploit checkpoints/board.pt
+      --resume --out checkpoints/board_adversary_v2.pt --iterations 375`,
+      then evaluate adversary-vs-champion PER SEAT — pass requires no seat
+      blowout (v1's 87.3% is the cautionary example; ~50% overall alone is
+      not sufficient). Pass → rung C closes.
     Rulebook fidelity decisions deferred to rung D+.
 17. **Rung D — order stacks** (large; the strategic heart of FS): alternating
     face-down order tokens (Advance/Deploy/Strategize/Dominate) resolved
