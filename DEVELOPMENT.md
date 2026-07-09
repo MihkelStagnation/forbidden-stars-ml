@@ -420,13 +420,21 @@ heuristic bots replace calibration as the yardstick from here.)
       `board_v1_p0first.pt`.
     - **v2 champion** (retrained under rotation, `checkpoints/board.pt`):
       beats the heuristic 95.7 / 92.7 / 98.0 / 86.3% across the four seats.
-      **NEXT STEP (paused 2026-07-08):** the v2 exploitability re-probe was
-      stopped at ~iter 25/400; resume with
-      `python -m scripts.train --env board --exploit checkpoints/board.pt
-      --resume --out checkpoints/board_adversary_v2.pt --iterations 375`,
-      then evaluate adversary-vs-champion PER SEAT — pass requires no seat
-      blowout (v1's 87.3% is the cautionary example; ~50% overall alone is
-      not sufficient). Pass → rung C closes.
+      **v2 probe verdict: FAILED (2026-07-09).** 400-iter adversary
+      (`board_adversary_v2.pt`) vs champion, 300 games/seat: as P0/SM
+      **66.3%**, P0/Orks 61.7%, P1/Orks 34.0%, P1/SM 17.3% (overall 44.8%).
+      Raw numbers look passable until baselined against the champion's
+      self-mirror: P0/SM wins only **24.7%** and P0/Orks **87.0%** — i.e.
+      skilled board play is heavily **Ork-favored (75-87% mirror)**, echoing
+      the campaign's 80/20 Ork lean. So the adversary flipping P0/SM from a
+      24.7% baseline to 66.3% is a **~41-point hole in the champion's
+      Ork play**, not a seat effect. Lesson: judge probe seats against the
+      champion's own mirror baseline, not against 50%. Rung C stays OPEN;
+      remediation options: (a) PSRO-lite — add `board_adversary_v2.pt` to
+      the league pool and retrain the champion, re-probe; (b) take the
+      DeepNash decision point early. Per-seat eval + mirror scripts are
+      ad-hoc (model-vs-model); consider promoting into scripts/evaluate.py
+      (`--opponent model:<path>`).
     Rulebook fidelity decisions deferred to rung D+.
 17. **Rung D — order stacks** (large; the strategic heart of FS): alternating
     face-down order tokens (Advance/Deploy/Strategize/Dominate) resolved

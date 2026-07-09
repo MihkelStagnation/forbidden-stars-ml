@@ -7,3 +7,4 @@ sim_results/
 venv/
 .pytest_cache/
 .DS_Store
+logs/
