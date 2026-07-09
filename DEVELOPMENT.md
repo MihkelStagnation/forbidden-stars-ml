@@ -429,12 +429,27 @@ heuristic bots replace calibration as the yardstick from here.)
       the campaign's 80/20 Ork lean. So the adversary flipping P0/SM from a
       24.7% baseline to 66.3% is a **~41-point hole in the champion's
       Ork play**, not a seat effect. Lesson: judge probe seats against the
-      champion's own mirror baseline, not against 50%. Rung C stays OPEN;
-      remediation options: (a) PSRO-lite — add `board_adversary_v2.pt` to
-      the league pool and retrain the champion, re-probe; (b) take the
-      DeepNash decision point early. Per-seat eval + mirror scripts are
-      ad-hoc (model-vs-model); consider promoting into scripts/evaluate.py
+      champion's own mirror baseline, not against 50%. Remediation chosen:
+      PSRO-lite — model-vs-model eval promoted into scripts/evaluate.py
       (`--opponent model:<path>`).
+    - **PSRO-lite cycle + v3 probe: PASSED — rung C CLOSED (2026-07-09).**
+      Seeded 3 copies of `board_adversary_v2.pt` into the league pool
+      (~10% of episodes; old snapshots preserved as `v2snap_*`), resumed
+      the champion 400 iters (`board.pt`; pre-league champion archived as
+      `board_v2_preleague.pt`). Gauntlet: (1) heuristic per-seat
+      **93.7/99.3/99.3/95.7** — worst seat UP from 86.3; (2) new mirror:
+      P0/SM 14.3% / P0/Orks 84.7% — Orks now ~85% from either seat, seat
+      effect gone, faction lean remains; (3) old adversary's exploit seat
+      collapsed 66.3% → **6.0%**; (4) fresh 400-iter v3 adversary
+      (`board_adversary_v3.pt`) per seat vs mirror baseline: P0/SM 26.7
+      (+12.4), P1/Orks 88.0 (+2.7), P0/Orks 98.7 (+14.0), P1/SM 0.0
+      (−14.7). Max excess +14 pts (vs v2's +41.6) — expected best-response
+      margin at this compute; the exploiter specialized into Orks and
+      abandoned SM entirely. **One exploiter-in-the-league cycle closed
+      the hole and improved general strength — league training remains
+      the default; DeepNash stays deferred until a probe fails
+      post-remediation.** Balance: skilled board play is Ork-favored
+      ~85/15 (knobs still noted for later).
     Rulebook fidelity decisions deferred to rung D+.
 17. **Rung D — order stacks** (large; the strategic heart of FS): alternating
     face-down order tokens (Advance/Deploy/Strategize/Dominate) resolved
