@@ -451,12 +451,50 @@ heuristic bots replace calibration as the yardstick from here.)
       post-remediation.** Balance: skilled board play is Ork-favored
       ~85/15 (knobs still noted for later).
     Rulebook fidelity decisions deferred to rung D+.
-17. **Rung D — order stacks** (large; the strategic heart of FS): alternating
-    face-down order tokens (Advance/Deploy/Strategize/Dominate) resolved
-    LIFO. Stratego-like bluffing → implement **BPTT** here (beliefs about
-    hidden orders must persist), re-run the exploitability probe, and this is
-    the DeepNash decision point — bluffing equilibria are where plain
-    self-play PPO historically cracks. Likely wants a GPU.
+17. **Rung D — order stacks** (built 2026-07-12, `fsneural/order_env.py`;
+    first training in progress). The strategic heart of FS: rung C's
+    build/move phases replaced by the real planning/operations structure on
+    the same 5-planet map.
+    - **Planning**: initiative-first alternating placement of 4 face-down
+      tokens each (pool: 2× Advance/Deploy/Strategize/Dominate) on ANY
+      planet; tokens stack LIFO, covering the enemy's delays them. The
+      opponent sees where/whose, never which — the Stratego-like core.
+    - **Operations**: alternating, a player MUST reveal+execute one of their
+      own top-of-stack tokens (skipped if none). Advance at X = pull unmoved
+      units from adjacent planets into X, battle if contested (advancer =
+      attacker; revealing an Advance and moving nothing is the legal bluff).
+      Deploy at X = buy units arriving exhausted at X, requires sole
+      occupancy (else fizzles). Strategize = buy one upgrade card.
+      Dominate at X = gain PLANET_VALUE×2 if controlled — planet income
+      flows ONLY through Dominate now (base income stays flat 3), so economy
+      competes with tempo for order slots.
+    - Simplifications: Advance pulls from all adjacent planets (not exactly
+      one system); no ships/transports; token pool refreshes fully each
+      round (as FS refresh does).
+    - Dims: ACTION_DIM 41 (4 new order-type actions; planet + build + pass
+      actions reused), SCALAR_FEATS 240 (order block 200: phase flags,
+      pools, pending/executing order, per-planet stack encoding 4 deep
+      top-down with OWN-ONLY type visibility, token counts). Enemy token
+      types are never observable — tested (`tests/test_order_env.py`, 10
+      tests: LIFO turn order, pool caps, deploy fizzle, dominate control
+      gating, hidden-info encoding, termination).
+    - **TBPTT implemented** (`selfplay.py: build_sequences/ppo_update_bptt`,
+      `train.py --bptt CHUNK`): trajectories keep temporal order, split into
+      ≤CHUNK-step chunks, chunk-initial memory from rollout (stored state,
+      no burn-in), gradient flows through the GRU within a chunk. Padded
+      tails masked out of every loss term. Old stored-state path untouched
+      (`--bptt 0` default).
+    - **Baselines (400 games/cell, 2026-07-12)**: random-vs-random P0=SM
+      43.0 / P0=Orks 46.0 (draws ~12%) — the order game at random play is
+      FAR more balanced than rung C's 38/58, and episodes run ~230
+      decisions. Order heuristic (defend-home/deploy/press/dominate
+      placement, economy-first execution, don't-feed-outnumbered advances)
+      beats random 77.5/93.2/84.2/91.5 per seat — big learnable edge, yet
+      NOT the 98-99% of rung C: hidden orders blunt scripted play. Gate:
+      trained agent beats random clearly, then approaches/beats the
+      heuristic from every seat, then the exploitability probe vs the
+      mirror baseline. This is the DeepNash decision point — bluffing
+      equilibria are where plain self-play PPO historically cracks.
 18. **Rung E — objectives & victory** (medium): faction objective tokens on
     planets, win by collecting N over up to 8 rounds.
 19. **Rung F — fidelity backlog** (ongoing): void combat, bastions, real

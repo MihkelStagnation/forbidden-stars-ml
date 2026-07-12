@@ -24,12 +24,16 @@ import torch
 from fsneural.combat_env import CombatEnv
 from fsneural import game_env as ge
 from fsneural import board_env as be
+from fsneural import order_env as oe
 from fsneural.model import CombatNet
 from fsneural.agent import PolicyAgent
 from fsneural.heuristic import (
     heuristic_action, campaign_heuristic_action, board_heuristic_action,
+    order_heuristic_action,
 )
-from fsneural.selfplay import collect_episode, build_batch, ppo_update
+from fsneural.selfplay import (
+    collect_episode, build_batch, ppo_update, build_sequences, ppo_update_bptt,
+)
 
 MIX_MIRROR, MIX_SNAPSHOT, MIX_HEURISTIC = 0.5, 0.35, 0.15
 
@@ -48,6 +52,12 @@ def make_env_and_model(kind, seed, device):
                           n_build_actions=ge.N_BUILD_ACTIONS + be.N_PLANETS + 1
                           ).to(device)
         return env, model, board_heuristic_action
+    if kind == "orders":
+        env = oe.OrderEnv(seed=seed)
+        model = CombatNet(scalar_feats=oe.SCALAR_FEATS,
+                          unit_feats=oe.UNIT_FEATS,
+                          n_build_actions=oe.N_FLAT_ACTIONS).to(device)
+        return env, model, order_heuristic_action
     env = CombatEnv(seed=seed)
     return env, CombatNet().to(device), heuristic_action
 
@@ -70,7 +80,10 @@ def main():
     ap.add_argument("--gamma", type=float, default=0.99)
     ap.add_argument("--gae-lambda", type=float, default=0.95)
     ap.add_argument("--env", default="combat",
-                    choices=("combat", "campaign", "board"))
+                    choices=("combat", "campaign", "board", "orders"))
+    ap.add_argument("--bptt", type=int, default=0, metavar="CHUNK",
+                    help="truncated-BPTT chunk length; 0 = stored-state "
+                         "updates (the pre-rung-D behaviour)")
     ap.add_argument("--resume", action="store_true",
                     help="continue from the --out checkpoint if it exists "
                          "(model weights only; the optimizer restarts fresh)")
@@ -156,9 +169,14 @@ def main():
                                             opponent=opponent,
                                             learner_player=learner))
 
-        batch = build_batch(episodes, device,
-                            gamma=args.gamma, lam=args.gae_lambda)
-        stats = ppo_update(model, optimizer, batch, epochs=args.epochs)
+        if args.bptt > 0:
+            batch = build_sequences(episodes, device, gamma=args.gamma,
+                                    lam=args.gae_lambda, chunk=args.bptt)
+            stats = ppo_update_bptt(model, optimizer, batch, epochs=args.epochs)
+        else:
+            batch = build_batch(episodes, device,
+                                gamma=args.gamma, lam=args.gae_lambda)
+            stats = ppo_update(model, optimizer, batch, epochs=args.epochs)
 
         if it % args.snapshot_every == 0 and not (args.no_league or args.exploit):
             torch.save(model.state_dict(),

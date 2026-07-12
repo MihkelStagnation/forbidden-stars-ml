@@ -20,10 +20,12 @@ import torch
 from fsneural.combat_env import CombatEnv
 from fsneural import game_env as ge
 from fsneural import board_env as be
+from fsneural import order_env as oe
 from fsneural.model import CombatNet
 from fsneural.agent import PolicyAgent
 from fsneural.heuristic import (
     heuristic_action, campaign_heuristic_action, board_heuristic_action,
+    order_heuristic_action,
 )
 
 
@@ -36,6 +38,7 @@ def play_game(env, agent, rng, agent_player=0, deterministic=True,
               opponent="random", opponent_agent=None):
     heuristic_fn = (campaign_heuristic_action if isinstance(env, ge.GameEnv)
                     else board_heuristic_action if isinstance(env, be.BoardEnv)
+                    else order_heuristic_action if isinstance(env, oe.OrderEnv)
                     else heuristic_action)
     obs, info = env.reset()
     agent.reset_memory()
@@ -68,7 +71,7 @@ def main():
     ap.add_argument("--factions", nargs=2, default=["SM", "Orks"],
                     metavar=("ATTACKER", "DEFENDER"))
     ap.add_argument("--env", default="combat",
-                    choices=("combat", "campaign", "board"))
+                    choices=("combat", "campaign", "board", "orders"))
     args = ap.parse_args()
     if args.env != "combat" and args.model == "checkpoints/model.pt":
         args.model = f"checkpoints/{args.env}.pt"
@@ -87,6 +90,12 @@ def main():
                              unit_feats=be.UNIT_FEATS,
                              n_build_actions=(ge.N_BUILD_ACTIONS
                                               + be.N_PLANETS + 1)).to(device)
+    elif args.env == "orders":
+        env = oe.OrderEnv(factions=tuple(args.factions), seed=args.seed)
+        def make_model():
+            return CombatNet(scalar_feats=oe.SCALAR_FEATS,
+                             unit_feats=oe.UNIT_FEATS,
+                             n_build_actions=oe.N_FLAT_ACTIONS).to(device)
     else:
         env = CombatEnv(factions=tuple(args.factions), seed=args.seed)
         def make_model():

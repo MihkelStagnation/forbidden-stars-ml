@@ -115,6 +115,127 @@ def build_batch(episodes, device="cpu", gamma=0.99, lam=0.95):
     return batch
 
 
+OBS_KEYS = ("units_self", "units_enemy", "hand", "scalars", "action_mask")
+
+
+def build_sequences(episodes, device="cpu", gamma=0.99, lam=0.95, chunk=32):
+    """build_batch, but for truncated BPTT: each player's trajectory keeps
+    its temporal order and is split into chunks of <= `chunk` steps. Returns
+    (N, L, ...) tensors plus a validity mask; a chunk's initial memory is the
+    ROLLOUT-time memory of its first step (stored state, no burn-in), and
+    gradient flows through the GRU within the chunk."""
+    raw = []
+    for transitions, winner in episodes:
+        for p in (0, 1):
+            traj = [t for t in transitions if t["player"] == p]
+            if not traj:
+                continue
+            n = len(traj)
+            vals = [t["value"] for t in traj] + [0.0]
+            gae = 0.0
+            advs = [0.0] * n
+            for i in reversed(range(n)):
+                reward = _outcome(winner, p) if i == n - 1 else 0.0
+                delta = reward + gamma * vals[i + 1] - vals[i]
+                gae = delta + gamma * lam * gae
+                advs[i] = gae
+            for start in range(0, n, chunk):
+                sub = traj[start:start + chunk]
+                raw.append({
+                    "steps": sub,
+                    "adv": advs[start:start + chunk],
+                    "ret": [advs[start + i] + vals[start + i]
+                            for i in range(len(sub))],
+                    "mem0": sub[0]["mem_in"],
+                })
+
+    N, L = len(raw), chunk
+    batch = {}
+    for key in OBS_KEYS:
+        shape = raw[0]["steps"][0]["obs"][key].shape
+        dtype = bool if key == "action_mask" else np.float32
+        arr = np.zeros((N, L) + shape, dtype=dtype)
+        for i, c in enumerate(raw):
+            for t, s in enumerate(c["steps"]):
+                arr[i, t] = s["obs"][key]
+        batch[key] = torch.as_tensor(
+            arr, dtype=torch.bool if key == "action_mask" else torch.float32,
+            device=device)
+
+    def pad(vals_per_chunk, dtype):
+        arr = np.zeros((N, L), dtype=dtype)
+        for i, vs in enumerate(vals_per_chunk):
+            arr[i, :len(vs)] = vs
+        return torch.as_tensor(arr, device=device)
+
+    batch["action"] = pad([[s["action"] for s in c["steps"]] for c in raw],
+                          np.int64)
+    batch["old_logp"] = pad([[s["logp"] for s in c["steps"]] for c in raw],
+                            np.float32)
+    batch["advantage"] = pad([c["adv"] for c in raw], np.float32)
+    batch["return"] = pad([c["ret"] for c in raw], np.float32)
+    batch["valid"] = pad([[1.0] * len(c["steps"]) for c in raw], np.float32)
+    batch["mem_in"] = torch.as_tensor(
+        np.stack([c["mem0"] for c in raw]), dtype=torch.float32, device=device)
+    return batch
+
+
+def ppo_update_bptt(model, optimizer, batch, epochs=4, clip=0.2,
+                    value_coef=0.5, entropy_coef=0.01):
+    """Clipped-surrogate updates with gradient flowing through the GRU
+    across each chunk's steps (truncated BPTT). Padded steps sit at chunk
+    tails, so their memory garbage never feeds a valid step."""
+    model.train()
+    valid = batch["valid"]
+    n_valid = valid.sum()
+    adv = batch["advantage"]
+    mean = (adv * valid).sum() / n_valid
+    std = torch.sqrt(((adv - mean) ** 2 * valid).sum() / n_valid) + 1e-8
+    adv = (adv - mean) / std
+
+    L = valid.shape[1]
+    stats = {}
+    for _ in range(epochs):
+        mem = batch["mem_in"]
+        policy_loss = value_loss = entropy_sum = 0.0
+        for t in range(L):
+            obs_t = {k: batch[k][:, t] for k in OBS_KEYS}
+            logits, value, mem = model(obs_t, mem)
+            logp_all = F.log_softmax(logits, dim=-1)
+            logp = logp_all.gather(
+                1, batch["action"][:, t].unsqueeze(1)).squeeze(1)
+            v = valid[:, t]
+
+            ratio = torch.exp(logp - batch["old_logp"][:, t])
+            unclipped = ratio * adv[:, t]
+            clipped = torch.clamp(ratio, 1 - clip, 1 + clip) * adv[:, t]
+            policy_loss = policy_loss - (torch.min(unclipped, clipped) * v).sum()
+
+            value_loss = value_loss + (
+                (value - batch["return"][:, t]) ** 2 * v).sum()
+
+            probs = torch.exp(logp_all)
+            entropy_sum = entropy_sum - ((probs * logp_all).sum(dim=-1) * v).sum()
+
+        policy_loss = policy_loss / n_valid
+        value_loss = value_loss / n_valid
+        entropy = entropy_sum / n_valid
+        loss = policy_loss + value_coef * value_loss - entropy_coef * entropy
+
+        optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+
+        stats = {
+            "loss": float(loss.item()),
+            "policy_loss": float(policy_loss.item()),
+            "value_loss": float(value_loss.item()),
+            "entropy": float(entropy.item()),
+        }
+    return stats
+
+
 def ppo_update(model, optimizer, batch, epochs=4, clip=0.2,
                value_coef=0.5, entropy_coef=0.01):
     """A few epochs of clipped-surrogate updates over one batch."""
