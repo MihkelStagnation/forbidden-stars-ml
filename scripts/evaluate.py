@@ -72,6 +72,10 @@ def main():
                     metavar=("ATTACKER", "DEFENDER"))
     ap.add_argument("--env", default="combat",
                     choices=("combat", "campaign", "board", "orders"))
+    ap.add_argument("--stochastic", action="store_true",
+                    help="sample actions instead of argmax (both nets). "
+                         "The right protocol for bluffing rungs: argmax "
+                         "destroys a learned mixed strategy")
     args = ap.parse_args()
     if args.env != "combat" and args.model == "checkpoints/model.pt":
         args.model = f"checkpoints/{args.env}.pt"
@@ -122,7 +126,8 @@ def main():
     wins = draws = losses = 0
     for _ in range(args.games):
         w = play_game(env, agent, rng, agent_player=me, opponent=args.opponent,
-                      opponent_agent=opponent_agent)
+                      opponent_agent=opponent_agent,
+                      deterministic=not args.stochastic)
         if w == me:
             wins += 1
         elif w == -1:

@@ -495,6 +495,31 @@ heuristic bots replace calibration as the yardstick from here.)
       heuristic from every seat, then the exploitability probe vs the
       mirror baseline. This is the DeepNash decision point — bluffing
       equilibria are where plain self-play PPO historically cracks.
+    - **v1 champion results** (600-iter league + TBPTT-32 run, 2026-07-13,
+      `checkpoints/orders.pt`): beats the heuristic **99.3/100/99.3/100**
+      per seat (1200 games, zero losses) and random 90-97%. Mirror: SM
+      wins 59.7% (P0) / 55.0% (P1) — the faction lean FLIPPED and shrank
+      vs rung C (Ork 85/15 → SM ~57/43): the Dominate-only economy rewards
+      SM's expensive quality units far more than the free-income blitz
+      did. Seat effect ~5 pts (rotation working).
+    - **v1 probe verdict: FAILED — catastrophically (2026-07-13).**
+      400-iter adversary (`orders_adversary_v1.pt`) beats the champion
+      **100.0% in all four seats** deterministically, and — the honest
+      number, via the new `evaluate.py --stochastic` (argmax destroys a
+      learned mixed strategy, so bluffing rungs must be probed sampling) —
+      **94.0-96.7% per seat** with both nets sampling, vs mirror baselines
+      of 32.7-61.3: excess **+34 to +64 in EVERY seat** (rung C's failure
+      was +41 in one). The exploit (traced): a two-round staging blitz —
+      round 1 all four tokens on the flank planet adjacent to both homes,
+      Advances stacked ON TOP of Deploys so LIFO moves the army in first
+      and the Deploys legally reinforce the newly-occupied planet; round 2
+      double-Advance storms the enemy home. The champion ignores the
+      loudest public tell in the game (4 enemy tokens massed next door)
+      and even vacates its home to race mid. Self-play never punished it.
+      Note the champion still crushes the heuristic 100-0 — script
+      dominance says nothing about equilibrium quality. Remediation:
+      PSRO-lite cycle (adversary seeded into league_orders, champion
+      resumed) — DeepNash triggers if a post-remediation probe fails.
 18. **Rung E — objectives & victory** (medium): faction objective tokens on
     planets, win by collecting N over up to 8 rounds.
 19. **Rung F — fidelity backlog** (ongoing): void combat, bastions, real
