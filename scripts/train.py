@@ -84,6 +84,15 @@ def main():
     ap.add_argument("--bptt", type=int, default=0, metavar="CHUNK",
                     help="truncated-BPTT chunk length; 0 = stored-state "
                          "updates (the pre-rung-D behaviour)")
+    ap.add_argument("--nash", type=float, default=0.0, metavar="ETA",
+                    help="R-NaD-lite (DeepNash-style Nash dynamics): add the "
+                         "per-step reward transform -ETA*log(pi/pi_reg) "
+                         "against a frozen regularization net that is "
+                         "refreshed to the current policy every --reg-every "
+                         "iters. Best combined with --no-league (pure "
+                         "mirror self-play is the regularized dynamic).")
+    ap.add_argument("--reg-every", type=int, default=50,
+                    help="iterations between regularization-net refreshes")
     ap.add_argument("--resume", action="store_true",
                     help="continue from the --out checkpoint if it exists "
                          "(model weights only; the optimizer restarts fresh)")
@@ -129,6 +138,13 @@ def main():
             torch.load(args.exploit, map_location=device))
         print(f"Exploitability probe: adversary vs frozen {args.exploit}")
 
+    reg_model = None
+    if args.nash > 0:
+        _, reg_model, _ = make_env_and_model(args.env, args.seed, device)
+        reg_model.load_state_dict(model.state_dict())
+        print(f"R-NaD: eta={args.nash}, reg net refreshed every "
+              f"{args.reg_every} iters")
+
     for it in range(1, args.iterations + 1):
         if not args.exploit:
             snapshots = sorted(
@@ -148,13 +164,15 @@ def main():
                 episodes.append(collect_episode(env, model, device,
                                                 factions=factions,
                                                 opponent=net_opponent,
-                                                learner_player=int(rng.integers(2))))
+                                                learner_player=int(rng.integers(2)),
+                                                reg_model=reg_model))
                 continue
             r = rng.random()
             if args.no_league or (r < MIX_MIRROR) or (not snapshots and r < MIX_MIRROR + MIX_SNAPSHOT):
                 opp_counts["mirror"] += 1
                 episodes.append(collect_episode(env, model, device,
-                                                factions=factions))
+                                                factions=factions,
+                                                reg_model=reg_model))
                 continue
             learner = int(rng.integers(2))
             if r < MIX_MIRROR + MIX_SNAPSHOT:
@@ -167,16 +185,22 @@ def main():
             episodes.append(collect_episode(env, model, device,
                                             factions=factions,
                                             opponent=opponent,
-                                            learner_player=learner))
+                                            learner_player=learner,
+                                            reg_model=reg_model))
 
         if args.bptt > 0:
             batch = build_sequences(episodes, device, gamma=args.gamma,
-                                    lam=args.gae_lambda, chunk=args.bptt)
+                                    lam=args.gae_lambda, chunk=args.bptt,
+                                    eta=args.nash)
             stats = ppo_update_bptt(model, optimizer, batch, epochs=args.epochs)
         else:
             batch = build_batch(episodes, device,
-                                gamma=args.gamma, lam=args.gae_lambda)
+                                gamma=args.gamma, lam=args.gae_lambda,
+                                eta=args.nash)
             stats = ppo_update(model, optimizer, batch, epochs=args.epochs)
+
+        if reg_model is not None and it % args.reg_every == 0:
+            reg_model.load_state_dict(model.state_dict())
 
         if it % args.snapshot_every == 0 and not (args.no_league or args.exploit):
             torch.save(model.state_dict(),
