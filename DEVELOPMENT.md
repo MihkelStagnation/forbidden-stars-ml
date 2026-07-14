@@ -520,6 +520,28 @@ heuristic bots replace calibration as the yardstick from here.)
       dominance says nothing about equilibrium quality. Remediation:
       PSRO-lite cycle (adversary seeded into league_orders, champion
       resumed) — DeepNash triggers if a post-remediation probe fails.
+    - **PSRO-lite cycle (2026-07-14)**: 5 copies of the v1 adversary into
+      `league_orders` (~12% of episodes), champion resumed 400 iters
+      (pre-league archived `orders_v1_preleague.pt`). The v1 blitz
+      COLLAPSED: old adversary now wins 2.7/7.7/13.3/7.7% per seat (from
+      94-97%) — below the mirror baselines, so the champion actively
+      punishes it. Heuristic held (100/100/99.7/93.7); new stochastic
+      mirror: SM 60.0 (P0) / 57.7 (P1).
+    - **v2 probe verdict: FAILED — DeepNash trigger fires (2026-07-14).**
+      Fresh 400-iter adversary (`orders_adversary_v2.pt`) vs the
+      remediated champion, stochastic, per seat vs mirror baseline:
+      P0/SM 78.7 (+18.7), P1/Orks **98.3 (+64.0)**, P0/Orks 77.3 (+39.3),
+      P1/SM 94.7 (+37.0). The traced exploit is a SIEGE, not the blitz:
+      ~5 rounds massing a 12-unit doom-stack on a flank planet (deploy+
+      advance loops), then storm the home; the champion turtles on
+      Dominate/Strategize economy and never contests the staging planet.
+      One PSRO cycle closed one best response and the next best response
+      found a hole of the same magnitude — classic strategy CYCLING, the
+      exact post-remediation failure the plan reserved as the DeepNash
+      criterion. Next: R-NaD-lite (DeepNash-style regularized Nash
+      dynamics) — per-step reward −η·log(π/π_reg) against a periodically-
+      refreshed frozen regularization net, pure mirror self-play, from
+      scratch — then re-gauntlet and re-probe.
 18. **Rung E — objectives & victory** (medium): faction objective tokens on
     planets, win by collecting N over up to 8 rounds.
 19. **Rung F — fidelity backlog** (ongoing): void combat, bastions, real
