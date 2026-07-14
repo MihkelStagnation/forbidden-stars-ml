@@ -542,6 +542,19 @@ heuristic bots replace calibration as the yardstick from here.)
       dynamics) — per-step reward −η·log(π/π_reg) against a periodically-
       refreshed frozen regularization net, pure mirror self-play, from
       scratch — then re-gauntlet and re-probe.
+    - **R-NaD from scratch: robust but WEAK (2026-07-14).** 600 iters,
+      η=0.2, reg refresh 50, pure mirror (`orders_nash_scratch.pt`).
+      Entropy stayed at 1.04 (vs the PPO champion's 0.55) — the mixing
+      works, and the v2 siege adversary falls BELOW mirror baseline from
+      the P1 seats (26.3/14.7%). But it fails the strength gate badly:
+      vs heuristic 57.3/74.3/12.3/22.3 with draw rates up to 87.7% (and
+      one seat 25.7% LOSSES). Diagnosis: from scratch, the per-step KL
+      penalty summed over ~115 decisions swamps the sparse ±1 terminal
+      reward — the policy anchors near its random init and learns
+      not-to-lose, not to win (DeepNash brute-forced this regime with
+      vastly more compute). Adaptation: WARM-START R-NaD from the strong
+      PPO champion (η=0.1, 400 iters) — keep the strength, let the Nash
+      dynamics mix the equilibrium around it.
 18. **Rung E — objectives & victory** (medium): faction objective tokens on
     planets, win by collecting N over up to 8 rounds.
 19. **Rung F — fidelity backlog** (ongoing): void combat, bastions, real
