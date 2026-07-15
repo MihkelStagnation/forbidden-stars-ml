@@ -570,6 +570,19 @@ heuristic bots replace calibration as the yardstick from here.)
       adversaries + snapshots) — the league pins known exploiters in
       the distribution, the regularization keeps the equilibrium mixed
       against new ones. Then the fresh v3 probe decides rung D.
+    - **Hybrid cycle 1 (2026-07-15, `orders_hybrid_c1.pt`): every
+      gauntlet front held, v3 probe improved but not passed.** Heuristic
+      100/100/99.3/97.3; v1 blitz dead (1.0-15.3%); v2 siege dead
+      (1.7-34.0%, all seats below baseline); mirror near-balanced
+      (P0 41.7/47.3 — the closest to 50/50 yet). Fresh v3 best-response
+      (`orders_adversary_v3.pt`, stochastic, vs baselines 41.7/53.7/
+      47.3/50.0): +33.6/+37.3/+10.7/+36.7. Fresh-BR max excess across
+      regimes: pure PPO +64 → post-PSRO +64 → hybrid +37 — first real
+      contraction, one seat already inside rung C's +15 pass margin.
+      ITERATING: v3 seeded into the league (3 copies), hybrid resumed
+      (cycle 2), then v4 probe. Stopping criterion: close rung D when
+      fresh-BR max excess ≤ ~+15-20, or log the residual as the
+      compute-bound exploitability if two consecutive cycles plateau.
 18. **Rung E — objectives & victory** (medium): faction objective tokens on
     planets, win by collecting N over up to 8 rounds.
 19. **Rung F — fidelity backlog** (ongoing): void combat, bastions, real
