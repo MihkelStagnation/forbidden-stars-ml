@@ -555,6 +555,21 @@ heuristic bots replace calibration as the yardstick from here.)
       vastly more compute). Adaptation: WARM-START R-NaD from the strong
       PPO champion (η=0.1, 400 iters) — keep the strength, let the Nash
       dynamics mix the equilibrium around it.
+    - **Warm-start R-NaD: partial (2026-07-15,
+      `orders_nash_warmstart.pt`).** Strength mostly held (heuristic
+      100/78.7/87.7/99.7 — dipped in Ork seats). The v2 siege collapsed
+      from +64 to +39 worst-seat (and fell BELOW baseline in its old best
+      seat), but the v1 blitz — which the league-trained champion crushed
+      3-13% — recovered to +35: pure-mirror R-NaD had no blitzer in the
+      training distribution and FORGOT the league's anti-blitz defense.
+      Lesson: R-NaD's regularization protects against drift toward a
+      fresh best response, but not against forgetting old ones it never
+      sees. Synthesis now training: LEAGUE + R-NaD hybrid
+      (`orders_hybrid.pt`, resumed from the PPO champion, η=0.1, league
+      seeded with 3 copies EACH of the v1 blitz and v2 siege
+      adversaries + snapshots) — the league pins known exploiters in
+      the distribution, the regularization keeps the equilibrium mixed
+      against new ones. Then the fresh v3 probe decides rung D.
 18. **Rung E — objectives & victory** (medium): faction objective tokens on
     planets, win by collecting N over up to 8 rounds.
 19. **Rung F — fidelity backlog** (ongoing): void combat, bastions, real
