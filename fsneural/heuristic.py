@@ -186,6 +186,43 @@ def order_heuristic_action(env, p):
     return best
 
 
+def objective_heuristic_action(env, p):
+    """Rung E bot: the order-stack bot with objective-aware targeting —
+    march toward planets still holding own objective tokens, defend home
+    (it carries the enemy's tokens), dominate for income."""
+    from .order_env import (
+        ADVANCE, PHASE_ORDER_PLANET, DEST_BASE, ADJACENT, HOME, PLANET_VALUE,
+        N_PLANETS,
+    )
+    # hop distance on this map is 0 (same), 1 (adjacent) or 2 (rest)
+    def dist(a, b):
+        return 0 if a == b else (1 if b in ADJACENT[a] else 2)
+
+    if (env._battle is None and env.phase == PHASE_ORDER_PLANET
+            and env._pending_type == ADVANCE):
+        opp = 1 - p
+        home_threat = any(u["planet"] == HOME[p] for u in env.units[opp]) or any(
+            u["planet"] in ADJACENT[HOME[p]] for u in env.units[opp])
+        mine_on_home = any(o == p and ot == ADVANCE
+                           for o, ot in env.stacks[HOME[p]])
+        if home_threat and not mine_on_home:
+            return DEST_BASE + HOME[p]
+        targets = set(env.objectives[p])
+        reachable = {d for u in env.units[p] for d in ADJACENT[u["planet"]]}
+        reachable |= {u["planet"] for u in env.units[p]}
+        if targets and reachable:
+            # nearest objective planet; if unreachable this round, step
+            # toward it via the reachable planet closest to it
+            best_t = min(targets, key=lambda t: (
+                min(dist(r, t) for r in reachable), -PLANET_VALUE[t]))
+            if best_t in reachable:
+                return DEST_BASE + best_t
+            step = min(reachable, key=lambda r: (dist(r, best_t),
+                                                 -PLANET_VALUE[r]))
+            return DEST_BASE + step
+    return order_heuristic_action(env, p)
+
+
 def heuristic_action(env, p):
     if env.phase == PHASE_PLAY:
         best, best_v = None, -1e9

@@ -25,11 +25,12 @@ from fsneural.combat_env import CombatEnv
 from fsneural import game_env as ge
 from fsneural import board_env as be
 from fsneural import order_env as oe
+from fsneural import objective_env as obj
 from fsneural.model import CombatNet
 from fsneural.agent import PolicyAgent
 from fsneural.heuristic import (
     heuristic_action, campaign_heuristic_action, board_heuristic_action,
-    order_heuristic_action,
+    order_heuristic_action, objective_heuristic_action,
 )
 from fsneural.selfplay import (
     collect_episode, build_batch, ppo_update, build_sequences, ppo_update_bptt,
@@ -58,6 +59,12 @@ def make_env_and_model(kind, seed, device):
                           unit_feats=oe.UNIT_FEATS,
                           n_build_actions=oe.N_FLAT_ACTIONS).to(device)
         return env, model, order_heuristic_action
+    if kind == "objectives":
+        env = obj.ObjectiveEnv(seed=seed)
+        model = CombatNet(scalar_feats=obj.SCALAR_FEATS,
+                          unit_feats=oe.UNIT_FEATS,
+                          n_build_actions=oe.N_FLAT_ACTIONS).to(device)
+        return env, model, objective_heuristic_action
     env = CombatEnv(seed=seed)
     return env, CombatNet().to(device), heuristic_action
 
@@ -80,7 +87,8 @@ def main():
     ap.add_argument("--gamma", type=float, default=0.99)
     ap.add_argument("--gae-lambda", type=float, default=0.95)
     ap.add_argument("--env", default="combat",
-                    choices=("combat", "campaign", "board", "orders"))
+                    choices=("combat", "campaign", "board", "orders",
+                             "objectives"))
     ap.add_argument("--bptt", type=int, default=0, metavar="CHUNK",
                     help="truncated-BPTT chunk length; 0 = stored-state "
                          "updates (the pre-rung-D behaviour)")

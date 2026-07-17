@@ -21,11 +21,12 @@ from fsneural.combat_env import CombatEnv
 from fsneural import game_env as ge
 from fsneural import board_env as be
 from fsneural import order_env as oe
+from fsneural import objective_env as obj
 from fsneural.model import CombatNet
 from fsneural.agent import PolicyAgent
 from fsneural.heuristic import (
     heuristic_action, campaign_heuristic_action, board_heuristic_action,
-    order_heuristic_action,
+    order_heuristic_action, objective_heuristic_action,
 )
 
 
@@ -38,6 +39,8 @@ def play_game(env, agent, rng, agent_player=0, deterministic=True,
               opponent="random", opponent_agent=None):
     heuristic_fn = (campaign_heuristic_action if isinstance(env, ge.GameEnv)
                     else board_heuristic_action if isinstance(env, be.BoardEnv)
+                    else objective_heuristic_action
+                    if isinstance(env, obj.ObjectiveEnv)
                     else order_heuristic_action if isinstance(env, oe.OrderEnv)
                     else heuristic_action)
     obs, info = env.reset()
@@ -71,7 +74,8 @@ def main():
     ap.add_argument("--factions", nargs=2, default=["SM", "Orks"],
                     metavar=("ATTACKER", "DEFENDER"))
     ap.add_argument("--env", default="combat",
-                    choices=("combat", "campaign", "board", "orders"))
+                    choices=("combat", "campaign", "board", "orders",
+                             "objectives"))
     ap.add_argument("--stochastic", action="store_true",
                     help="sample actions instead of argmax (both nets). "
                          "The right protocol for bluffing rungs: argmax "
@@ -98,6 +102,12 @@ def main():
         env = oe.OrderEnv(factions=tuple(args.factions), seed=args.seed)
         def make_model():
             return CombatNet(scalar_feats=oe.SCALAR_FEATS,
+                             unit_feats=oe.UNIT_FEATS,
+                             n_build_actions=oe.N_FLAT_ACTIONS).to(device)
+    elif args.env == "objectives":
+        env = obj.ObjectiveEnv(factions=tuple(args.factions), seed=args.seed)
+        def make_model():
+            return CombatNet(scalar_feats=obj.SCALAR_FEATS,
                              unit_feats=oe.UNIT_FEATS,
                              n_build_actions=oe.N_FLAT_ACTIONS).to(device)
     else:
