@@ -583,6 +583,30 @@ heuristic bots replace calibration as the yardstick from here.)
       (cycle 2), then v4 probe. Stopping criterion: close rung D when
       fresh-BR max excess ≤ ~+15-20, or log the residual as the
       compute-bound exploitability if two consecutive cycles plateau.
+    - **Hybrid cycle 2 + v4 probe: PLATEAU — rung D CLOSED (2026-07-16).**
+      Cycle 2 (v3 seeded, resumed 400 iters): heuristic 100/99.3/100/100,
+      v3 adversary collapsed (7.0-32.3%, all below baseline), mirror
+      43.3/44.0 — every known front held. Fresh v4 best-response
+      (stochastic, vs baselines 43.3/52.7/44.0/46.0): −43/+38.3/+31.3/
+      +28.7 (it abandoned P0/SM outright, 0/300). Fresh-BR max excess
+      by cycle: +64 → +37 → +38 — the contraction stopped; per the
+      stopping criterion the residual **~+35-40 vs a dedicated 400-iter
+      best response is rung D's compute-bound exploitability floor**,
+      and further cycles whack each new mole without shrinking it.
+      CHAMPION: `orders_hybrid.pt` (league + R-NaD, cycle 2).
+      RUNG D LESSONS: (1) deterministic eval hides exploitability —
+      probe bluffing rungs with --stochastic, always; (2) plain
+      self-play PPO cracked exactly as the DeepNash literature predicts
+      (+64 every seat, then PSRO cycling blitz→siege); (3) R-NaD from
+      scratch can't climb at this compute (KL swamps the sparse
+      terminal reward), and pure-mirror R-NaD forgets exploiters it
+      never sees; (4) LEAGUE + R-NaD is the workable synthesis — full
+      strength, every historical adversary dead, mirror near 50/50,
+      fresh-BR margin halved; (5) balance: order stacks nearly erase
+      the faction lean (mirror ~44-53% vs the board rung's 85/15 Ork) —
+      the order system is itself a balancing mechanism. Not a clean
+      probe pass: closed on the documented-residual criterion. Optional
+      future hardening: more cycles at bigger nets/GPU compute.
 18. **Rung E — objectives & victory** (medium): faction objective tokens on
     planets, win by collecting N over up to 8 rounds.
 19. **Rung F — fidelity backlog** (ongoing): void combat, bastions, real
